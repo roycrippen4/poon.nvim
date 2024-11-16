@@ -8,7 +8,7 @@
 
 ---@class poon.Config.menu.keys
 ---@field mode? "n"|"i" Mode to use the keymap
----@field action? "select"|"close" Action to perform. 'select' selects the file, 'close' closes the menu
+---@field action? "select"|"close"|"vsplit"|"hsplit" Action to perform. `'select'` selects the file, `'close'` closes the menu. `'vsplit'` and `'hsplit'` open the file in a vertical or horizontal split respectively
 ---@field key? string Key to use
 
 ---@class poon.Config.mark.save_opts Determines when marks are saved to disk
@@ -27,6 +27,7 @@
 ---@field close_on_select? boolean Closes the menu upon selecting a file
 ---@field keys? poon.Config.menu.keys[] Buffer local keymaps for the menu
 ---@field win? vim.api.keyset.win_config The window configuration. See |nvim_open_win|
+---@field backdrop? boolean Similar to lazy.nvim's backdrop effect. Default = true
 
 ---@class poon.Config
 ---@field menu? poon.Config.menu Menu configuration

@@ -1,20 +1,18 @@
-local utils = require('poon.utils')
+local Utils = require('poon.utils')
 
--- local config = require('poon.config')
-
--- local path = config.mark.data_path
--- if not path then
---   vim.notify_once('No data path set for marks. Using default', vim.log.levels.WARN, { title = 'Poon' })
--- end
--- path = path or vim.fn.stdpath('data') .. '/poon/marks.json'
+local config = require('poon.config')
 
 local cwd = vim.fn.getcwd(0)
-local data_path = vim.fn.stdpath('config') .. '/dev/poon.nvim/marks.json'
-local project_marks = utils.get_project_marks(cwd, data_path) ---@type poon.project.mark[]
+local data_path = config.mark.data_path
+if not data_path then
+  vim.notify_once('No data path set for marks. Using default', vim.log.levels.WARN, { title = 'Poon' })
+end
+data_path = data_path or vim.fn.stdpath('data') .. '/poon/marks.json'
+local project_marks = Utils.get_project_marks(cwd, data_path) ---@type poon.project.mark[]
 
 ---Save the marks for the current project
 local function save()
-  local projects = utils.JSON.parse(vim.fn.readfile(data_path)) ---@type poon.projects
+  local projects = JSON.parse(vim.fn.readfile(data_path)) ---@type poon.projects
 
   if not vim.tbl_contains(vim.tbl_keys(projects), cwd) then
     vim.notify('Project error: Project not found in marks', vim.log.levels.ERROR, { title = 'Poon' })
@@ -22,46 +20,29 @@ local function save()
 
   projects[cwd] = project_marks
 
-  -- filter invalid marks
-  project_marks = vim.tbl_filter(function(mark)
-    return mark.filename ~= nil and mark.filename ~= ''
-  end, project_marks)
+  project_marks = vim
+    .iter(project_marks)
+    :filter(function(mark)
+      return mark.filename ~= nil and mark.filename ~= ''
+    end)
+    :totable()
 
-  local json = utils.JSON.stringify(projects)
+  local json = JSON.stringify(projects)
   vim.fn.writefile({ json }, data_path)
-
   vim.cmd.redrawtabline()
 end
 
 local M = {}
 
----Synchronize marks with the items in the menu and update the file
----@param files? string[]
-function M.sync(files)
-  if not files then
-    return
-  end
-
-  --
-  for i, file in ipairs(files) do
-    -- check if the file is already marked and in memory
-    local j = M.idx(file)
-    if not j then -- if not, add it
-      table.insert(project_marks, { filename = file, row = 1, col = 1 })
-    end
-
-    -- if it is marked move its position to the current position
-    local row, col = project_marks[j].row, project_marks[j].col
-    table.remove(project_marks, j)
-    table.insert(project_marks, i, { filename = file, row = row, col = col })
-  end
+---@param marks poon.project.mark[]
+function M.update(marks)
+  project_marks = marks
+  save()
 end
 
 ---Add the current file to this project's marks
 function M.set()
-  local filename = vim.fn.expand('%:p')
-  local relative_path = vim.fn.fnamemodify(filename, ':.')
-
+  local relative_path = Utils.get_relative_path()
   if M.is_marked() then
     local idx = M.idx(relative_path)
     project_marks[idx].row = vim.fn.line('.')
@@ -149,10 +130,10 @@ end
 ---@param bufnr? integer
 ---@return boolean
 function M.is_marked(bufnr)
-  local filename = bufnr and vim.fn.bufname(bufnr) or vim.fn.expand('%:p')
-  local relative_path = vim.fn.fnamemodify(filename, ':.')
-  -- stylua: ignore
-  return vim.iter(project_marks):any(function(mark) return mark.filename == relative_path end)
+  local relative_path = Utils.get_relative_path(bufnr)
+  return vim.iter(project_marks):any(function(mark)
+    return mark.filename == relative_path
+  end)
 end
 
 ---Checks if the current project has marks
@@ -163,8 +144,7 @@ end
 
 --- Sets the currently opened file to the first entry in the marks list
 function M.set_as_first_mark()
-  local filename = vim.fn.expand('%:p')
-  local relative_path = vim.fn.fnamemodify(filename, ':.')
+  local relative_path = Utils.get_relative_path()
   local row = vim.fn.line('.')
   local col = vim.fn.col('.')
 
@@ -189,13 +169,18 @@ function M.set_as_first_mark()
 end
 
 ---Removes the current file from the project's marks
-function M.remove()
+---@param index? integer
+function M.remove(index)
+  if index and project_marks[index] then
+    table.remove(project_marks, index)
+    return
+  end
+
   if not M.is_marked() then
     return
   end
 
-  local filename = vim.fn.expand('%:p')
-  local relative_path = vim.fn.fnamemodify(filename, ':.')
+  local relative_path = Utils.get_relative_path()
   local idx = M.idx(relative_path)
 
   if not idx then

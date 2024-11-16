@@ -1,6 +1,15 @@
 local autocmd = vim.api.nvim_create_autocmd
 local Config = require('poon.config')
 local Mark = require('poon.mark')
+local Utils = require('poon.utils')
+
+vim.api.nvim_set_hl(0, 'PoonBackdrop', { bg = '#000000', default = true })
+vim.api.nvim_set_hl(0, 'PoonNormal', { link = 'NormalFloat', default = true })
+vim.api.nvim_set_hl(0, 'PoonNormalNC', { link = 'NormalFloat', default = true })
+vim.api.nvim_set_hl(0, 'PoonFloatBorder', { link = 'FloatBorder', default = true })
+vim.api.nvim_set_hl(0, 'PoonWinBar', { link = 'Title', default = true })
+vim.api.nvim_set_hl(0, 'PoonWinBarNC', { link = 'SnacksWinBar', default = true })
+vim.api.nvim_set_hl(0, 'PoonOpenMark', { link = 'Conditional', default = true })
 
 local width = 70
 local height = 10
@@ -8,7 +17,7 @@ local height = 10
 ---@type poon.Config.menu
 local default = {
   win = {
-    border = 'rounded',
+    border = 'solid',
     relative = 'editor',
     style = 'minimal',
     width = width,
@@ -23,7 +32,10 @@ local default = {
     { mode = 'n', action = 'select', key = '<cr>' },
     { mode = 'n', action = 'close', key = '<esc>' },
     { mode = 'n', action = 'close', key = 'q' },
+    { mode = 'n', action = 'vsplit', key = '<c-v>' },
+    { mode = 'n', action = 'hsplit', key = '<c-h>' },
   },
+  backdrop = true,
 }
 local config = vim.tbl_deep_extend('force', default, Config.menu or {})
 local ns = vim.api.nvim_create_namespace('POON')
@@ -38,6 +50,11 @@ local function set_options(bufnr, winnr)
   vim.api.nvim_set_option_value('buftype', 'acwrite', { buf = bufnr })
   vim.api.nvim_set_option_value('bufhidden', 'delete', { buf = bufnr })
   vim.api.nvim_set_option_value('statuscolumn', '%l%=%s', { scope = 'local' })
+  vim.api.nvim_set_option_value(
+    'winhighlight',
+    'Normal:PoonNormal,NormalNC:PoonNormalNC,WinBar:PoonWinBar,WinBarNC:PoonWinBarNC,FloatBorder:PoonFloatBorder',
+    { win = winnr }
+  )
 end
 
 ---@param file_name string
@@ -59,23 +76,32 @@ local function get_sign(file_name)
 end
 
 --- Sets the icon and it's highlight group
-local function set_signs(bufnr)
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, true)
-  vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+---@param poon_bufnr integer
+---@param current_bufnr integer
+local function set_signs(poon_bufnr, current_bufnr)
+  local lines = vim.api.nvim_buf_get_lines(poon_bufnr, 0, -1, true)
+  vim.api.nvim_buf_clear_namespace(poon_bufnr, ns, 0, -1)
+
+  local file = Utils.get_relative_path(current_bufnr)
+  vim.iter(Utils.sanitize(lines)):enumerate():each(function(index, line)
+    if line == file then
+      vim.api.nvim_buf_set_extmark(poon_bufnr, ns, index - 1, 0, {
+        line_hl_group = 'PoonOpenMark',
+        virt_text_pos = 'eol',
+        end_row = index - 1,
+        end_col = #line,
+        strict = false,
+      })
+    end
+  end)
 
   if #lines == 1 and #lines[1] == 0 then
     return
   end
 
-  for idx, _ in pairs(lines) do
-    local marks = Mark.get_marks()
-    if not marks[idx] then
-      return
-    end
-
-    local mark = marks[idx]
-    local sign_name = get_sign(mark.filename)
-    vim.fn.sign_place(0, '', sign_name, bufnr, { lnum = idx })
+  for idx, _ in ipairs(lines) do
+    local sign = get_sign(lines[idx])
+    vim.fn.sign_place(0, '', sign, poon_bufnr, { lnum = idx })
   end
 end
 
@@ -91,6 +117,10 @@ local function set_keymaps(keys)
         require('poon.menu'):close()
       elseif map.action == 'select' then
         require('poon.menu'):select()
+      elseif map.action == 'vsplit' then
+        require('poon.menu'):vsplit()
+      elseif map.action == 'hsplit' then
+        require('poon.menu'):hsplit()
       end
     end, { buffer = true })
   end)
@@ -98,67 +128,69 @@ end
 
 ---@param bufnr integer
 local function set_contents(bufnr)
-  -- stylua: ignore
   local contents = vim
     .iter(Mark.get_marks())
-    :map(function(mark) return mark.filename end)
+    :map(function(mark)
+      return mark.filename
+    end)
     :totable()
   vim.api.nvim_buf_set_lines(bufnr, 0, #contents, false, contents)
 end
 
-local function set_autocmds(bufnr)
-  autocmd('BufWriteCmd', {
-    buffer = bufnr,
-    callback = function()
-      -- require('harpoon.ui').on_menu_save()
-    end,
-  })
-
-  autocmd('BufModifiedSet', {
-    buffer = bufnr,
-    callback = function()
-      vim.cmd('set nomodified')
-    end,
-  })
-
-  if Config.mark.save.on_change then
-    autocmd({ 'TextChanged', 'TextChangedI' }, {
-      buffer = bufnr,
-      callback = function()
-        set_signs(bufnr)
-      end,
-    })
-  end
-
-  autocmd('BufLeave', {
-    once = true,
-    callback = function()
-      require('poon.menu'):close()
-    end,
-  })
-end
-
 ---@class poon.UI
+---@field current_bufnr? integer
 ---@field bufnr? integer
 ---@field winnr? integer
 ---@field is_open? boolean
 local M = {
+  current_bufnr = nil,
   bufnr = nil,
   winnr = nil,
   is_open = false,
 }
 
 function M:open()
-  self:close()
+  self.current_bufnr = vim.api.nvim_get_current_buf()
   self.bufnr = vim.api.nvim_create_buf(false, true)
   self.is_open = true
   vim.bo[self.bufnr].ft = 'poon'
+
+  self:set_autocmds()
   self.winnr = vim.api.nvim_open_win(M.bufnr, true, config.win or {})
+  self:create_backdrop()
+  set_keymaps(config.keys)
+  set_signs(self.bufnr, self.current_bufnr)
   set_contents(self.bufnr)
   set_options(self.bufnr, self.winnr)
-  set_keymaps(config.keys)
-  set_signs(self.bufnr)
-  set_autocmds(self.bufnr)
+end
+
+---@param lines string[]
+function M:sync(lines)
+  local files = Utils.sanitize(lines)
+  local marks = Mark.get_marks()
+  local new_marks = {} ---@type poon.project.mark[]
+
+  local map = {} ---@type table<string, poon.project.mark>
+  vim.iter(marks):each(function(mark)
+    map[mark.filename] = mark
+  end)
+
+  vim.iter(files):each(function(filename)
+    if map[filename] then
+      table.insert(new_marks, {
+        filename = map[filename].filename,
+        row = map[filename].row,
+        col = map[filename].col,
+      })
+    else
+      table.insert(new_marks, {
+        filename = filename,
+        row = 1,
+        col = 1,
+      })
+    end
+  end)
+  Mark.update(new_marks)
 end
 
 function M:close()
@@ -166,8 +198,9 @@ function M:close()
     return
   end
 
-  local lines = vim.api.nvim_buf_get_lines(self.bufnr, 0, -1, false)
-  log(lines)
+  if Config.mark.save.on_menu_close then
+    self:sync(vim.api.nvim_buf_get_lines(self.bufnr, 0, -1, false))
+  end
 
   vim.api.nvim_win_close(self.winnr, true)
   if self.bufnr then
@@ -176,6 +209,7 @@ function M:close()
   self.winnr = nil
   self.bufnr = nil
   self.is_open = false
+  self.current_bufnr = nil
 end
 
 function M:valid()
@@ -190,9 +224,101 @@ function M:toggle()
   end
 end
 
-function M:select()
-  Snacks.debug.inspect('TODO: implement menu.select()')
+function M:vsplit()
+  local file = vim.fn.getcwd() .. '/' .. vim.api.nvim_get_current_line()
   self:close()
+  vim.cmd('vs')
+  vim.cmd.edit(file)
+end
+
+function M:hsplit()
+  local file = vim.fn.getcwd() .. '/' .. vim.api.nvim_get_current_line()
+  self:close()
+  vim.cmd('sp')
+  vim.cmd.edit(file)
+end
+
+function M:select()
+  local i = vim.fn.line('.')
+  local files = Utils.sanitize(vim.api.nvim_buf_get_lines(self.bufnr, 0, -1, false))
+  self:close() -- this should sync the menu lines with the project marks and the data file
+
+  if #files < i then -- This shouldnt happen, but it's a wild world out there
+    return
+  end
+
+  Mark.jump(i)
+end
+
+function M:set_autocmds()
+  autocmd('BufWriteCmd', {
+    buffer = self.bufnr,
+    callback = function()
+      M:sync(vim.api.nvim_buf_get_lines(self.bufnr, 0, -1, false))
+    end,
+  })
+
+  autocmd('BufModifiedSet', {
+    buffer = self.bufnr,
+    callback = function()
+      vim.cmd('set nomodified')
+    end,
+  })
+
+  if Config.mark.save.on_change then
+    autocmd({ 'TextChanged', 'TextChangedI' }, {
+      buffer = self.bufnr,
+      callback = function()
+        M:sync(vim.api.nvim_buf_get_lines(self.bufnr, 0, -1, false))
+        set_signs(self.bufnr, self.current_bufnr)
+      end,
+    })
+  end
+
+  autocmd('BufLeave', {
+    buffer = self.bufnr,
+    callback = function()
+      M:close()
+    end,
+  })
+end
+
+local original_highlight = Utils.translate_hl('MsgArea')
+function M:create_backdrop()
+  if not config.backdrop then
+    return
+  end
+
+  local backdrop_bufnr = vim.api.nvim_create_buf(false, true)
+  local winnr = vim.api.nvim_open_win(backdrop_bufnr, false, {
+    relative = 'editor',
+    row = 0,
+    col = 0,
+    width = vim.o.columns,
+    height = vim.o.columns,
+    focusable = false,
+    style = 'minimal',
+    zindex = 10,
+  })
+
+  vim.api.nvim_set_hl(0, 'Backdrop', { bg = '#000000', default = true })
+  vim.wo[winnr].winhighlight = 'Normal:Backdrop'
+  vim.wo[winnr].winblend = 50
+  vim.bo[backdrop_bufnr].buftype = 'nofile'
+
+  vim.api.nvim_set_hl(0, 'MsgArea', { bg = '#101215' })
+  vim.api.nvim_create_autocmd('WinClosed', {
+    once = true,
+    callback = function()
+      vim.api.nvim_set_hl(0, 'MsgArea', original_highlight)
+      if vim.api.nvim_win_is_valid(winnr) then
+        vim.api.nvim_win_close(winnr, true)
+      end
+      if vim.api.nvim_buf_is_valid(backdrop_bufnr) then
+        vim.api.nvim_buf_delete(backdrop_bufnr, { force = true })
+      end
+    end,
+  })
 end
 
 return M

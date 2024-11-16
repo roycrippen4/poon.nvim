@@ -2,7 +2,7 @@ local M = {}
 
 --- Helper object for JSON operations
 --- vim.encode/decode does some weird escaping
-M.JSON = {
+_G.JSON = {
   ---@param tbl table
   ---@return string
   stringify = function(tbl)
@@ -17,22 +17,20 @@ M.JSON = {
       str = table.concat(str, '') -- join lines
     end
 
-    str = str:gsub('%s+', '') -- trim whitespace
-    str = str:gsub('/', '\\/') -- escape slashes
+    str = M.trim(str)
     return vim.json.decode(str)
   end,
 }
 
 function M.trim(str)
-  str = str:gsub('^%s+', '')
-  str = str:gsub('%s+$', '')
+  str = str:gsub('^%s+', ''):gsub('%s+$', '')
   return str
 end
 
 ---@param cwd string
 ---@param data_path string
 local function create_data_file(cwd, data_path)
-  local json = M.JSON.stringify({ [cwd] = {} })
+  local json = JSON.stringify({ [cwd] = {} })
   vim.fn.writefile({ json }, data_path)
 end
 
@@ -41,7 +39,7 @@ end
 ---@return poon.project.mark[]
 local function read_data_file(cwd, data_path)
   ---@type poon.projects
-  local projects = M.JSON.parse(vim.fn.readfile(data_path))
+  local projects = JSON.parse(vim.fn.readfile(data_path))
 
   if vim.tbl_contains(vim.tbl_keys(projects), cwd) then
     return projects[cwd]
@@ -50,7 +48,7 @@ local function read_data_file(cwd, data_path)
   projects[cwd] = {}
   vim.tbl_deep_extend('force', projects, { [cwd] = {} })
 
-  local json = M.JSON.stringify(projects)
+  local json = JSON.stringify(projects)
   vim.fn.writefile({ json }, data_path)
   return projects[cwd]
 end
@@ -68,26 +66,55 @@ function M.get_project_marks(cwd, data_path)
 end
 
 ---@param files? string[]
-function M.filter_files(files)
+---@return string[]
+function M.sanitize(files)
   if not files then
-    return
+    return {}
   end
 
+  files = vim.iter(files):map(M.trim):totable()
+
+  local result = {}
   local hash = {}
-  for i, file in ipairs(files) do
-    if file == nil or file == '' or M.trim(file) == '' then
-      table.remove(files, i)
-      break
-    end
-
-    if not hash[file] then
+  for _, file in ipairs(files) do
+    if file ~= '' and not hash[file] then
       hash[file] = true
-    else
-      table.remove(files, i)
+      result[#result + 1] = file
     end
   end
 
-  return files
+  return result
+end
+
+---@param file_or_bufnr? string | integer
+---@return string
+function M.get_relative_path(file_or_bufnr)
+  if not file_or_bufnr then
+    return vim.fn.fnamemodify(vim.fn.expand('%p'), ':.')
+  end
+
+  if type(file_or_bufnr) == 'number' then
+    return vim.fn.fnamemodify(vim.api.nvim_buf_get_name(file_or_bufnr), ':.')
+  end
+
+  return vim.fn.fnamemodify(file_or_bufnr --[[@as string]], ':.')
+end
+
+---@param hl_name string
+---@return vim.api.keyset.highlight
+function M.translate_hl(hl_name)
+  local res = {} ---@type vim.api.keyset.highlight
+  local hl = vim.api.nvim_get_hl(0, { name = hl_name })
+  vim.iter(hl):each(function(k, v)
+    if k == 'bg' then
+      res.bg = ('#%06x'):format(v)
+    end
+    if k == 'fg' then
+      res.fg = ('#%06x'):format(v)
+    end
+    res.cterm = hl.cterm
+  end)
+  return res
 end
 
 return M
