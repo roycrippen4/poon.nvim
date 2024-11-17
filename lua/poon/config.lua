@@ -32,14 +32,7 @@
 ---@class poon.Config
 ---@field menu? poon.Config.menu Menu configuration
 ---@field mark? poon.Config.mark Mark configuration
----@field restore? poon.Config.restore Mark restoration configuration
-
----@class poon.Config.restore
----@field on_startup? boolean Automatically reopen all marked files on startup. Requires `lazy = false` in setup. Default = false
----@field integrations? poon.Config.restore.integrations Settings for third-party plugin integrations
-
----@class poon.Config.restore.integrations
----@field nvim_tree boolean Enables nvim-tree integration. Default = false
+---@field restore_on_startup? boolean Automatically reopen all marked files on startup. Requires `lazy = false` in setup. Default = false
 
 ---@type poon.Config
 local options
@@ -49,12 +42,7 @@ local M = {}
 
 ---@type poon.Config
 local defaults = {
-  restore = {
-    integrations = {
-      nvim_tree = false,
-    },
-    on_startup = false,
-  },
+  restore_on_startup = false,
   menu = {},
   mark = {
     save = {

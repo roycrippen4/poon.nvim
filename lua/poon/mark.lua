@@ -1,5 +1,4 @@
 local Utils = require('poon.utils')
-
 local config = require('poon.config')
 
 local cwd = vim.fn.getcwd(0)

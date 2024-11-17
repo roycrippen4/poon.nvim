@@ -27,28 +27,27 @@ local function setup_autocmds(opts)
     autocmd('BufLeave', { callback = update_mark })
   end
 
-  if not opts.restore.on_startup then
+  if not opts.restore_on_startup then
     return
   end
 
-  if opts.restore.integrations.nvim_tree then
-    if #Mark.get_marks() == 0 then
-      return
-    end
-
-    autocmd('FileType', {
-      once = true,
-      pattern = 'NvimTree',
-      callback = function()
-        vim.defer_fn(function()
-          vim.cmd(':NvimTreeClose')
-          M.restore_marks()
-          vim.cmd(':NvimTreeOpen')
-          vim.cmd('wincmd l')
-        end, 0)
-      end,
-    })
+  if #Mark.get_marks() == 0 then
+    return
   end
+
+  autocmd('FileType', {
+    once = true,
+    pattern = 'NvimTree',
+    callback = function()
+      Snacks.debug.inspect('NVIMTREE')
+      vim.defer_fn(function()
+        vim.cmd(':NvimTreeClose')
+        M.restore_marks()
+        vim.cmd(':NvimTreeOpen')
+        vim.cmd('wincmd l')
+      end, 0)
+    end,
+  })
 end
 
 ---@param opts? poon.Config Configuration options
@@ -60,6 +59,11 @@ end
 --- Restores all marked files
 function M.restore_marks()
   local marks = Mark.get_marks()
+
+  if not marks then
+    return
+  end
+
   vim.iter(marks):each(function(m)
     vim.cmd.edit(m.filename)
     vim.api.nvim_win_set_cursor(0, { m.row, m.col })
