@@ -2,6 +2,7 @@ local autocmd = vim.api.nvim_create_autocmd
 local Config = require('poon.config')
 local Mark = require('poon.mark')
 local Utils = require('poon.utils')
+local original_highlight = Utils.translate_hl('MsgArea')
 
 vim.api.nvim_set_hl(0, 'PoonBackdrop', { bg = '#000000', default = true })
 vim.api.nvim_set_hl(0, 'PoonNormal', { link = 'NormalFloat', default = true })
@@ -146,6 +147,8 @@ local M = {
   current_bufnr = nil,
   bufnr = nil,
   winnr = nil,
+  backdrop_bufnr = nil,
+  backdrop_winnr = nil,
   is_open = false,
 }
 
@@ -157,7 +160,7 @@ function M:open()
 
   self:set_autocmds()
   self.winnr = vim.api.nvim_open_win(M.bufnr, true, config.win or {})
-  self:create_backdrop()
+  self:open_backdrop()
   set_keymaps(config.keys)
   set_signs(self.bufnr, self.current_bufnr)
   set_contents(self.bufnr)
@@ -202,6 +205,7 @@ function M:close()
     self:sync(vim.api.nvim_buf_get_lines(self.bufnr, 0, -1, false))
   end
 
+  self:close_backdrop()
   vim.api.nvim_win_close(self.winnr, true)
   if self.bufnr then
     vim.api.nvim_buf_delete(self.bufnr, { force = true })
@@ -283,14 +287,15 @@ function M:set_autocmds()
   })
 end
 
-local original_highlight = Utils.translate_hl('MsgArea')
-function M:create_backdrop()
+function M:open_backdrop()
   if not config.backdrop then
+    self.backdrop_bufnr = nil
+    self.backdrop_winnr = nil
     return
   end
 
-  local backdrop_bufnr = vim.api.nvim_create_buf(false, true)
-  local winnr = vim.api.nvim_open_win(backdrop_bufnr, false, {
+  self.backdrop_bufnr = vim.api.nvim_create_buf(false, true)
+  self.backdrop_winnr = vim.api.nvim_open_win(self.backdrop_bufnr, false, {
     relative = 'editor',
     row = 0,
     col = 0,
@@ -302,23 +307,24 @@ function M:create_backdrop()
   })
 
   vim.api.nvim_set_hl(0, 'Backdrop', { bg = '#000000', default = true })
-  vim.wo[winnr].winhighlight = 'Normal:Backdrop'
-  vim.wo[winnr].winblend = 50
-  vim.bo[backdrop_bufnr].buftype = 'nofile'
+  vim.wo[self.backdrop_winnr].winhighlight = 'Normal:Backdrop'
+  vim.wo[self.backdrop_winnr].winblend = 50
+  vim.bo[self.backdrop_bufnr].buftype = 'nofile'
+end
+
+function M:close_backdrop()
+  if not config.backdrop or not self.backdrop_bufnr or not self.backdrop_winnr then
+    return
+  end
 
   vim.api.nvim_set_hl(0, 'MsgArea', { bg = '#101215' })
-  vim.api.nvim_create_autocmd('WinClosed', {
-    once = true,
-    callback = function()
-      vim.api.nvim_set_hl(0, 'MsgArea', original_highlight)
-      if vim.api.nvim_win_is_valid(winnr) then
-        vim.api.nvim_win_close(winnr, true)
-      end
-      if vim.api.nvim_buf_is_valid(backdrop_bufnr) then
-        vim.api.nvim_buf_delete(backdrop_bufnr, { force = true })
-      end
-    end,
-  })
+  vim.api.nvim_set_hl(0, 'MsgArea', original_highlight)
+  if vim.api.nvim_win_is_valid(self.backdrop_winnr) then
+    vim.api.nvim_win_close(self.backdrop_winnr, true)
+  end
+  if vim.api.nvim_buf_is_valid(self.backdrop_bufnr) then
+    vim.api.nvim_buf_delete(self.backdrop_bufnr, { force = true })
+  end
 end
 
 return M
