@@ -39,7 +39,6 @@ local function setup_autocmds(opts)
     once = true,
     pattern = 'NvimTree',
     callback = function()
-      Snacks.debug.inspect('NVIMTREE')
       vim.defer_fn(function()
         vim.cmd(':NvimTreeClose')
         M.restore_marks()
