@@ -32,7 +32,6 @@
 ---@class poon.Config
 ---@field menu? poon.Config.menu Menu configuration
 ---@field mark? poon.Config.mark Mark configuration
----@field restore_on_startup? boolean Automatically reopen all marked files on startup. Requires `lazy = false` in setup. Default = false
 
 ---@type poon.Config
 local options
@@ -42,7 +41,6 @@ local M = {}
 
 ---@type poon.Config
 local defaults = {
-  restore_on_startup = false,
   menu = {},
   mark = {
     save = {

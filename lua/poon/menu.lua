@@ -2,7 +2,6 @@ local autocmd = vim.api.nvim_create_autocmd
 local Config = require('poon.config')
 local Mark = require('poon.mark')
 local Utils = require('poon.utils')
-local original_highlight = Utils.translate_hl('MsgArea')
 
 vim.api.nvim_set_hl(0, 'PoonBackdrop', { bg = '#000000', default = true })
 vim.api.nvim_set_hl(0, 'PoonNormal', { link = 'NormalFloat', default = true })
@@ -287,6 +286,7 @@ function M:set_autocmds()
   })
 end
 
+local original_highlight = Utils.translate_hl('MsgArea')
 function M:open_backdrop()
   if not config.backdrop then
     self.backdrop_bufnr = nil
@@ -307,6 +307,7 @@ function M:open_backdrop()
   })
 
   vim.api.nvim_set_hl(0, 'Backdrop', { bg = '#000000', default = true })
+  vim.api.nvim_set_hl(0, 'MsgArea', { bg = '#101215' })
   vim.wo[self.backdrop_winnr].winhighlight = 'Normal:Backdrop'
   vim.wo[self.backdrop_winnr].winblend = 50
   vim.bo[self.backdrop_bufnr].buftype = 'nofile'
@@ -317,7 +318,6 @@ function M:close_backdrop()
     return
   end
 
-  vim.api.nvim_set_hl(0, 'MsgArea', { bg = '#101215' })
   vim.api.nvim_set_hl(0, 'MsgArea', original_highlight)
   if vim.api.nvim_win_is_valid(self.backdrop_winnr) then
     vim.api.nvim_win_close(self.backdrop_winnr, true)

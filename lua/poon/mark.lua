@@ -91,6 +91,7 @@ function M.jump(idx)
   if not valid_index(idx) then
     return
   end
+
   local mark = project_marks[idx]
   local filename = vim.fs.normalize(mark.filename)
   local buf_id = get_or_create_buffer(filename)
@@ -100,7 +101,7 @@ function M.jump(idx)
   vim.api.nvim_set_option_value('buflisted', true, { buf = buf_id })
 
   if vim.api.nvim_buf_is_loaded(buf_id) and mark.row and mark.col then
-    vim.api.nvim_win_set_cursor(0, { mark.row, mark.col - 1 })
+    pcall(vim.api.nvim_win_set_cursor, 0, { mark.row, mark.col - 1 })
   end
 
   local old_bufinfo = vim.fn.getbufinfo(old_bufnr)
