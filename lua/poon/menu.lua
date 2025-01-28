@@ -50,6 +50,7 @@ local function set_options(bufnr, winnr)
   vim.api.nvim_set_option_value('buftype', 'acwrite', { buf = bufnr })
   vim.api.nvim_set_option_value('bufhidden', 'delete', { buf = bufnr })
   vim.api.nvim_set_option_value('statuscolumn', '%l%=%s', { scope = 'local' })
+  vim.api.nvim_set_option_value('cursorline', true, { win = winnr })
   vim.api.nvim_set_option_value(
     'winhighlight',
     'Normal:PoonNormal,NormalNC:PoonNormalNC,WinBar:PoonWinBar,WinBarNC:PoonWinBarNC,FloatBorder:PoonFloatBorder',
@@ -78,7 +79,8 @@ end
 --- Sets the icon and it's highlight group
 ---@param poon_bufnr integer
 ---@param current_bufnr integer
-local function set_signs(poon_bufnr, current_bufnr)
+---@param current_winnr integer
+local function set_signs(poon_bufnr, current_bufnr, current_winnr)
   local lines = vim.api.nvim_buf_get_lines(poon_bufnr, 0, -1, true)
   vim.api.nvim_buf_clear_namespace(poon_bufnr, ns, 0, -1)
 
@@ -92,6 +94,7 @@ local function set_signs(poon_bufnr, current_bufnr)
         end_col = #line,
         strict = false,
       })
+      vim.api.nvim_win_set_cursor(current_winnr, { index, 0 })
     end
   end)
 
@@ -161,7 +164,7 @@ function M:open()
   self.winnr = vim.api.nvim_open_win(M.bufnr, true, config.win or {})
   self:open_backdrop()
   set_keymaps(config.keys)
-  set_signs(self.bufnr, self.current_bufnr)
+  set_signs(self.bufnr, self.current_bufnr, self.winnr)
   set_contents(self.bufnr)
   set_options(self.bufnr, self.winnr)
 end
@@ -273,7 +276,7 @@ function M:set_autocmds()
       buffer = self.bufnr,
       callback = function()
         M:sync(vim.api.nvim_buf_get_lines(self.bufnr, 0, -1, false))
-        set_signs(self.bufnr, self.current_bufnr)
+        set_signs(self.bufnr, self.current_bufnr, self.winnr)
       end,
     })
   end
