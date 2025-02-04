@@ -92,6 +92,11 @@ function M.jump(idx)
     return
   end
 
+  if vim.bo.ft == 'lazy' then
+    vim.notify('Cannot jump when inside a lazy window', vim.log.levels.ERROR)
+    return
+  end
+
   local mark = project_marks[idx]
   local filename = vim.fs.normalize(mark.filename)
   local buf_id = get_or_create_buffer(filename)
