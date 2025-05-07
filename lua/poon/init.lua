@@ -110,11 +110,11 @@ end, {
   end,
 })
 
-vim.api.nvim_create_user_command('PoonAddMark', function(opts)
+vim.api.nvim_create_user_command('PoonAdd', function(opts)
   (opts.bang and M.mark_as_first or M.mark_add)()
 end, { desc = 'Add file to marks. Use `!` to set as first mark', bang = true })
 
-vim.api.nvim_create_user_command('PoonRemoveMark', M.mark_remove, { desc = 'Remove the current file from the marks list' })
+vim.api.nvim_create_user_command('PoonRemove', M.mark_remove, { desc = 'Remove the current file from the marks list' })
 vim.api.nvim_create_user_command('PoonToggle', M.menu_toggle, { desc = 'Toggle the Poon Menu' })
 vim.api.nvim_create_user_command('PoonOpen', M.menu_open, { desc = 'Open the Poon Menu' })
 vim.api.nvim_create_user_command('PoonClose', M.menu_close, { desc = 'Open the Poon Menu' })
