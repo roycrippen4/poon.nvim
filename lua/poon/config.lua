@@ -22,6 +22,7 @@
 ---@class poon.Config.mark Mark configuration options
 ---@field save? poon.Config.mark.save_opts When to update the marks file
 ---@field data_path? string Where to save the marks file. Default: vim.fn.stdpath('data') .. '/marks.json'
+---@field exclude? poon.Config.mark.exclude Prevent poon from marking certain files
 
 ---@class poon.Config.menu
 ---@field close_on_select? boolean Closes the menu upon selecting a file
@@ -32,6 +33,10 @@
 ---@class poon.Config
 ---@field menu? poon.Config.menu Menu configuration
 ---@field mark? poon.Config.mark Mark configuration
+
+---@class poon.Config.mark.exclude
+---@field ft? string[]
+---@field bufname? string[]
 
 ---@type poon.Config
 local options
@@ -50,6 +55,53 @@ local defaults = {
       on_select = true,
       on_move = false,
       on_change = true,
+    },
+    exclude = {
+      --- List of filetypes that will not be marked
+      --- Using this option replaces the original list, e.g. both lists will not be merged.
+      --- ---
+      ---Default:
+      ---```
+      ---{
+      ---  'neo-tree'
+      ---  'NvimTree',
+      ---  'Trouble',
+      ---  'poon',
+      ---  'help',
+      ---  'noice',
+      ---  'prompt',
+      ---  'terminal',
+      ---  'toggleterm',
+      ---  'fidget',
+      ---  'notify',
+      ---  'snacks_notif',
+      ---  'neotest-summary',
+      ---  'neotest-output-panel'
+      ---}
+      ---```
+      ft = {
+        'neo-tree',
+        'NvimTree',
+        'Trouble',
+        'poon',
+        'help',
+        'noice',
+        'prompt',
+        'terminal',
+        'toggleterm',
+        'fidget',
+        'notify',
+        'snacks_notif',
+        'neotest-summary',
+        'neotest-output-panel',
+      },
+      --- Bufnames that will not be marked.
+      --- ---
+      --- Default:
+      --- ```
+      --- { "[No Name]" }
+      --- ```
+      bufname = { '[No Name]' },
     },
     data_path = vim.fn.stdpath('data') .. '/marks.json',
   },

@@ -41,6 +41,17 @@ end
 
 ---Add the current file to this project's marks
 function M.set()
+  local buf = vim.api.nvim_get_current_buf()
+
+  local bufname = vim.api.nvim_buf_get_name(buf)
+  if vim.tbl_contains(config.mark.exclude.bufname, bufname) then
+    return
+  end
+
+  if vim.tbl_contains(config.mark.exclude.ft, vim.bo[buf].ft) then
+    return
+  end
+
   local relative_path = Utils.get_relative_path()
   if M.is_marked() then
     local idx = M.idx(relative_path)
@@ -149,6 +160,17 @@ end
 
 --- Sets the currently opened file to the first entry in the marks list
 function M.set_as_first_mark()
+  local buf = vim.api.nvim_get_current_buf()
+
+  local bufname = vim.api.nvim_buf_get_name(buf)
+  if vim.tbl_contains(config.mark.exclude.bufname, bufname) then
+    return
+  end
+
+  if vim.tbl_contains(config.mark.exclude.ft, vim.bo[buf].ft) then
+    return
+  end
+
   local relative_path = Utils.get_relative_path()
   local row = vim.fn.line('.')
   local col = vim.fn.col('.')
