@@ -155,7 +155,7 @@ end
 ---Checks if the current project has marks
 ---@return boolean
 function M.has_marks()
-  return vim.tbl_isempty(project_marks)
+  return not vim.tbl_isempty(project_marks)
 end
 
 --- Sets the currently opened file to the first entry in the marks list
